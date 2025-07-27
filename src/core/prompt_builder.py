@@ -38,39 +38,42 @@ class PromptBuilder:
                 f"The main character is a {character}. Use simple, positive language. Limit to {word_limit} words. Please write in English."
             )
 
-    def build_structured_prompt(self, character: str, theme: str) -> str:
+    def build_structured_prompt(self, character: str, theme: str, word_limit: int = 300) -> str:
         """
         结构式Prompt生成
         :param character: 主角
         :param theme: 教育主题
+        :param word_limit: 字数上限
         :return: Prompt字符串
         """
         if self.lang == 'zh':
             return (
                 f"请分三段讲述一个儿童故事：1）介绍主人公（如{character}）；"
-                f"2）经历挑战；3）得到成长。主题为\"{theme}\"，适合{self.age}岁儿童。请用中文写作。"
+                f"2）经历挑战；3）得到成长。主题为\"{theme}\"，适合{self.age}岁儿童，字数不超过{word_limit}词。请用中文写作。"
             )
         else:
             return (
                 f"Tell a children's story in three parts: 1) Introduce the main character (e.g., {character}); "
-                f"2) Face a challenge; 3) Grow from the experience. Theme: '{theme}', suitable for a {self.age}-year-old. Please write in English."
+                f"2) Face a challenge; 3) Grow from the experience. Theme: '{theme}', suitable for a {self.age}-year-old. Limit to {word_limit} words. Please write in English."
             )
 
-    def build_question_prompt(self, theme: str) -> str:
+    def build_question_prompt(self, character: str, theme: str, word_limit: int = 300) -> str:
         """
         问句式Prompt生成
+        :param character: 主角
         :param theme: 教育主题
+        :param word_limit: 字数上限
         :return: Prompt字符串
         """
         if self.lang == 'zh':
             return (
-                f"什么是{theme}？请通过一则适合{self.age}岁儿童的故事解释这个问题。"
-                f"语言应通俗、有趣，表达积极价值观。请用中文写作。"
+                f"什么是{theme}？请通过一则以{character}为主角、适合{self.age}岁儿童的故事解释这个问题。"
+                f"语言应通俗、有趣，表达积极价值观，字数不超过{word_limit}词。请用中文写作。"
             )
         else:
             return (
-                f"What is {theme}? Please explain this concept through a story suitable for a {self.age}-year-old child. "
-                f"Use simple, engaging language and convey positive values. Please write in English."
+                f"What is {theme}? Please explain this concept through a story featuring {character} as the main character, suitable for a {self.age}-year-old child. "
+                f"Use simple, engaging language and convey positive values. Limit to {word_limit} words. Please write in English."
             )
 
 # 示例用法
@@ -78,4 +81,4 @@ if __name__ == "__main__":
     builder = PromptBuilder(age=7)
     print("[模板式]", builder.build_template_prompt("小狐狸", "合作"))
     print("[结构式]", builder.build_structured_prompt("小熊", "诚实"))
-    print("[问句式]", builder.build_question_prompt("环保")) 
+    print("[问句式]", builder.build_question_prompt("小兔子", "环保"))

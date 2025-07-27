@@ -362,8 +362,11 @@ with lang_col:
 
 # 数据加载函数
 @st.cache_data(ttl=300)  # 5分钟缓存
-def load_stories_data() -> List[Dict[str, Any]]:
+def load_stories_data(group_filter: str = "all") -> List[Dict[str, Any]]:
     """加载故事数据
+    
+    Args:
+        group_filter: 组过滤器 ("all", "group_a", "group_b", "group_c", "group_d")
     
     Returns:
         故事数据列表
@@ -371,7 +374,25 @@ def load_stories_data() -> List[Dict[str, Any]]:
     try:
         data_manager = DataManager()
         stories = data_manager.list_stories()
-        logger.info(f"Successfully loaded {len(stories)} stories")
+        
+        # 根据组过滤数据
+        if group_filter != "all":
+            filtered_stories = []
+            for story in stories:
+                params = story.get('parameters', {})
+                experiment_group = params.get('experiment_group', '').lower()
+                
+                # 如果没有experiment_group字段，跳过该故事
+                if not experiment_group:
+                    continue
+                
+                # 根据实验组名过滤
+                if experiment_group == group_filter:
+                    filtered_stories.append(story)
+            
+            stories = filtered_stories
+        
+        logger.info(f"Successfully loaded {len(stories)} stories for {group_filter}")
         return stories
     except Exception as e:
         error_msg = f'Failed to load stories data: {str(e)}'
@@ -581,6 +602,9 @@ with col2:
             st.cache_data.clear()
             logger.info("Data cache cleared by user")
             st.success(T('数据已刷新', 'Data refreshed successfully'))
+            # 重新加载数据时保持当前选择的组
+            if 'selected_group' in locals():
+                st.session_state['selected_group'] = selected_group
             st.rerun()
         except Exception as e:
             logger.error(f"Error refreshing data: {str(e)}")
@@ -589,16 +613,51 @@ with col2:
 # 主要内容
 st.markdown("---")
 
+# 实验组选择
+st.markdown(f"## {T('实验数据选择', 'Experiment Data Selection')}")
+
+group_options = {
+    T("全部数据", "All Data"): "all",
+    T("Group A - Friendship (Little Fox)", "Group A - Friendship (Little Fox)"): "group_a",
+    T("Group B - Cooperation (Little Ant)", "Group B - Cooperation (Little Ant)"): "group_b", 
+    T("Group C - Environmental Protection (Little Bear)", "Group C - Environmental Protection (Little Bear)"): "group_c",
+    T("Group D - Friendship (Little Mouse)", "Group D - Friendship (Little Mouse)"): "group_d"
+}
+
+selected_group_display = st.selectbox(
+    T("选择要分析的实验组:", "Select experiment group to analyze:"),
+    options=list(group_options.keys()),
+    index=0,
+    help=T("选择特定的实验组进行分析，或选择全部数据进行综合分析", "Select a specific experiment group for analysis, or choose all data for comprehensive analysis")
+)
+
+selected_group = group_options[selected_group_display]
+
+# 显示选择的组信息
+if selected_group != "all":
+    group_info = {
+        "group_a": T("主题：友谊 | 角色：小狐狸 | 目标：培养友谊价值观", "Theme: Friendship | Character: Little Fox | Goal: Foster friendship values"),
+        "group_b": T("主题：合作 | 角色：小蚂蚁 | 目标：培养合作精神", "Theme: Cooperation | Character: Little Ant | Goal: Foster cooperation spirit"),
+        "group_c": T("主题：环保 | 角色：小熊 | 目标：培养环保意识", "Theme: Environmental Protection | Character: Little Bear | Goal: Foster environmental awareness"),
+        "group_d": T("主题：友谊 | 角色：小老鼠 | 目标：培养友谊价值观", "Theme: Friendship | Character: Little Mouse | Goal: Foster friendship values")
+    }
+    st.info(f"📊 {T('当前分析组', 'Current Analysis Group')}: {group_info[selected_group]}")
+
+st.markdown("---")
+
 # 数据加载
 try:
     with st.spinner(T('正在加载数据...', 'Loading data...')):
-        stories_data = load_stories_data()
+        stories_data = load_stories_data(selected_group)
         
         if stories_data:
             stories_df = process_stories_data(stories_data)
         else:
             stories_df = pd.DataFrame()
-            st.warning(T('未找到故事数据', 'No story data found'))
+            if selected_group == "all":
+                st.warning(T('未找到故事数据', 'No story data found'))
+            else:
+                st.warning(T(f'未找到{selected_group_display}的数据', f'No data found for {selected_group_display}'))
             
 except Exception as e:
     logger.error(f"Critical error in data loading: {str(e)}")

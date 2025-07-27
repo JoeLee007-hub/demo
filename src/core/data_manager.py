@@ -47,12 +47,29 @@ class DataManager:
     def list_stories(self) -> List[Dict]:
         """列出所有故事"""
         stories = []
-        for file_name in os.listdir(self.stories_dir):
-            if file_name.endswith(".json"):
-                story_id = file_name[:-5]  # 移除.json后缀
-                story = self.get_story(story_id)
-                if story:
-                    stories.append(story)
+        
+        # 递归扫描stories目录及其子目录
+        for root, dirs, files in os.walk(self.stories_dir):
+            for file_name in files:
+                if file_name.endswith(".json"):
+                    file_path = os.path.join(root, file_name)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            story = json.load(f)
+                            
+                        # 如果故事没有experiment_group字段，根据文件路径推断
+                        if 'parameters' in story and 'experiment_group' not in story['parameters']:
+                            # 从文件路径中提取组名
+                            rel_path = os.path.relpath(file_path, self.stories_dir)
+                            if os.sep in rel_path:
+                                group_name = rel_path.split(os.sep)[0]
+                                story['parameters']['experiment_group'] = group_name
+                        
+                        stories.append(story)
+                    except (json.JSONDecodeError, IOError) as e:
+                        print(f"Error loading story from {file_path}: {e}")
+                        continue
+        
         return stories
 
     def save_feedback(self, feedback_data: Dict, feedback_id: Optional[str] = None) -> str:

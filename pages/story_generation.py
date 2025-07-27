@@ -119,9 +119,9 @@ with col2:
     if prompt_style == T('模板式','Template'):
         prompt = prompt_builder.build_template_prompt(character, theme, word_limit)
     elif prompt_style == T('结构式','Structured'):
-        prompt = prompt_builder.build_structured_prompt(character, theme)
+        prompt = prompt_builder.build_structured_prompt(character, theme, word_limit)
     else:
-        prompt = prompt_builder.build_question_prompt(theme)
+        prompt = prompt_builder.build_question_prompt(character, theme, word_limit)
     
     # Prompt展示
     st.subheader(T('生成的Prompt','Generated Prompt'))
@@ -200,6 +200,32 @@ with col2:
                     from src.core.data_manager import DataManager
                     data_manager = DataManager()
                     story_id = str(uuid.uuid4())
+                    
+                    # 获取可读性分析结果
+                    readability_data = None
+                    try:
+                        analyzer = ReadabilityAnalyzer()
+                        readability_data = analyzer.analyze(st.session_state["story"])
+                    except Exception as readability_error:
+                        st.warning(T(f'可读性分析失败，将保存故事但不包含可读性数据：{str(readability_error)}', f'Readability analysis failed, story will be saved without readability data: {str(readability_error)}'))
+                    
+                    # 根据主题和角色自动判断实验组
+                    experiment_group = "unknown"
+                    theme_lower = theme.lower()
+                    character_lower = character.lower()
+                    
+                    if "friendship" in theme_lower:
+                        if "fox" in character_lower:
+                            experiment_group = "group_a"
+                        elif "mouse" in character_lower:
+                            experiment_group = "group_d"
+                        else:
+                            experiment_group = "group_a"  # 默认友谊主题归为group_a
+                    elif "cooperation" in theme_lower:
+                        experiment_group = "group_b"
+                    elif "environmental" in theme_lower or "environment" in theme_lower:
+                        experiment_group = "group_c"
+                    
                     story_data = {
                         "story_id": story_id,
                         "content": st.session_state["story"],
@@ -209,9 +235,12 @@ with col2:
                             "theme": theme,
                             "prompt_style": prompt_style,
                             "word_limit": word_limit,
-                            "model": model_choice
+                            "model": model_choice,
+                            "experiment_group": experiment_group
                         },
-                        "prompt": prompt
+                        "prompt": prompt,
+                        "readability": readability_data,
+                        "safety_info": st.session_state.get("story_safety", None)
                     }
                     data_manager.save_story(story_data)
                     st.success(T(f'故事已保存！ID: {story_id}', f'Story saved! ID: {story_id}'))
